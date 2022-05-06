@@ -1,20 +1,19 @@
-; Execute the aws cli command below to get the Private IPs to build your own ansible inventory
-; aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text
-
+cat << EOF | tee inventory
 [k8s]
-controller1     ansible_host=<private_ip>    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes    
-controller2     ansible_host=<private_ip>  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
-worker1         ansible_host=<private_ip>   ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
-worker2         ansible_host=<private_ip>    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
-controller_api_server_lb  ansible_host=<private_ip> ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
+controller1     ansible_host=${CONTROLLER1_PRIVATE_IP}    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes    
+controller2     ansible_host=${CONTROLLER2_PRIVATE_IP}  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
+worker1         ansible_host=${WORKER1_PRIVATE_IP}  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
+worker2         ansible_host=${WORKER2_PRIVATE_IP}    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
+controller_api_server_lb  ansible_host=${CONTROLLER_API_LB_PRIVATE_IP} ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
 
 [controllers]
-controller1     ansible_host=<private_ip>  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes    
-controller2     ansible_host=<private_ip>  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
+controller1     ansible_host=${CONTROLLER1_PRIVATE_IP}    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes    
+controller2     ansible_host=${CONTROLLER2_PRIVATE_IP}  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
 
 [workers]
-worker1         ansible_host=<private_ip>   ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
-worker2         ansible_host=<private_ip>   ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
+worker1         ansible_host=${WORKER1_PRIVATE_IP}  ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
+worker2         ansible_host=${WORKER2_PRIVATE_IP}    ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
 
 [lb]
-controller_api_server_lb  ansible_host=<private_ip> ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file=~/.ssh/key.pem    ansible_become=yes
+controller_api_server_lb  ansible_host=${CONTROLLER_API_LB_PRIVATE_IP} ansible_connection=ssh      ansible_user=ubuntu   ansible_ssh_private_key_file="${SSH_KEY_FILE}"    ansible_become=yes
+EOF
