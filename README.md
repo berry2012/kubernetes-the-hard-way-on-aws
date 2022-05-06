@@ -23,6 +23,7 @@
 ## Deploying the Infrastructure with CloudFormation
 
 - Goto AWS Console > Choose Region (e.g. eu-west-1) > CloudFormation > Create Stack
+- Use the CF Yaml template in *infrastructure/k8s_aws_instances.yml*
 - See image below:
 
 ![Create Infrastructure](./images/CF-infrastructure.png) 
