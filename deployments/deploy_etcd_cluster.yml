@@ -1,0 +1,132 @@
+- hosts: controllers
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    cert_location: "/home/ubuntu/certs"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    
+    - name: Download etcd tar file
+      get_url:
+        url: https://github.com/etcd-io/etcd/releases/download/v3.4.15/etcd-v3.4.15-linux-amd64.tar.gz
+        dest: "{{ artifacts_location }}"
+        mode: '0440'
+
+    - name: Extract etcd-v3.4.15-linux-amd64.tar.gz into {{ artifacts_location }}
+      unarchive:
+        src: "{{ artifacts_location }}/etcd-v3.4.15-linux-amd64.tar.gz"
+        dest: "{{ artifacts_location }}"
+        remote_src: yes
+      
+    - name: transfer etcd to bin
+      shell: mv -v {{ artifacts_location }}/etcd-v3.4.15-linux-amd64/etcd* /usr/local/bin/
+
+    - name: create etcd dir
+      shell: mkdir -p /etc/etcd /var/lib/etcd && chmod 700 /var/lib/etcd
+
+    - name: copy kubernetes keys to etcd folder on remote hosts only
+      copy: 
+        src: "/home/ubuntu/{{ item }}"
+        dest: /etc/etcd
+        remote_src: yes
+      loop: 
+        - kubernetes-key.pem
+        - kubernetes.pem 
+        - ca.pem       
+
+    - name: Setting ETCD_NAME as fact
+      set_fact:
+        ETCD_NAME: "{{ 'controller1' if inventory_hostname == 'controller1' else 'controller2' if inventory_hostname == 'controller2' else 'controllerx' }}"
+
+    - name: Get internal IP
+      shell: INTERNAL_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4) && echo $INTERNAL_IP
+      register: internal_ip           
+
+    - name: Setting INTERNAL_IP as fact
+      set_fact: INTERNAL_IP="{{ internal_ip.stdout }}"
+
+    - name: Setting INITIAL_CLUSTER as fact
+      set_fact: INITIAL_CLUSTER="{{ initial_cluster }}"
+
+    - name: Prints fasts set as variables
+      debug:
+        msg:
+        - "ETCD_NAME is: '{{ ETCD_NAME }}'" 
+        - "INTERNAL_IP is: '{{ INTERNAL_IP }}'"
+        - "INITIAL_CLUSTER is: '{{ INITIAL_CLUSTER }}'"
+
+    - name: Create the  systemd  unit file for etcd
+      shell: |
+        cat << EOF | sudo tee /etc/systemd/system/etcd.service
+        [Unit]
+        Description=etcd
+        Documentation=https://github.com/coreos
+
+        [Service]
+        ExecStart=/usr/local/bin/etcd \\
+          --name {{ ETCD_NAME }} \\
+          --cert-file=/etc/etcd/kubernetes.pem \\
+          --key-file=/etc/etcd/kubernetes-key.pem \\
+          --peer-cert-file=/etc/etcd/kubernetes.pem \\
+          --peer-key-file=/etc/etcd/kubernetes-key.pem \\
+          --trusted-ca-file=/etc/etcd/ca.pem \\
+          --peer-trusted-ca-file=/etc/etcd/ca.pem \\
+          --peer-client-cert-auth \\
+          --client-cert-auth \\
+          --initial-advertise-peer-urls https://{{ INTERNAL_IP }}:2380 \\
+          --listen-peer-urls https://{{ INTERNAL_IP }}:2380 \\
+          --listen-client-urls https://{{ INTERNAL_IP }}:2379,https://127.0.0.1:2379 \\
+          --advertise-client-urls https://{{ INTERNAL_IP }}:2379 \\
+          --initial-cluster-token etcd-cluster-0 \\
+          --initial-cluster {{ INITIAL_CLUSTER }} \\
+          --initial-cluster-state new \\
+          --data-dir=/var/lib/etcd
+        Restart=on-failure
+        RestartSec=5
+
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - name: Register etcd service file
+      shell: cat /etc/systemd/system/etcd.service
+      register: etcdservice_file   
+      no_log: True
+
+    - name: Show etcd service file
+      debug:
+        msg: "{{ etcdservice_file.stdout_lines }}"   
+
+    - name: Install, configure, and start etcd
+      block:
+        - name: Reload the etcd service
+          shell: sudo systemctl daemon-reload
+
+        - name: Enable the etcd service
+          shell: sudo systemctl enable etcd
+
+        - name: Start the etcd service
+          shell: sudo systemctl start etcd
+      become: true
+      become_user: root
+
+    - name: verify that etcd is working correctly
+      shell: |
+        sudo ETCDCTL_API=3 etcdctl member list \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/etcd/ca.pem \
+          --cert=/etc/etcd/kubernetes.pem \
+          --key=/etc/etcd/kubernetes-key.pem
+      args:
+        warn: no
+      register: etcd_state
+
+    - name: Show etcd result - output should list your two etcd nodes
+      debug:
+        msg:
+        - "{{ etcd_state.stdout_lines }}"    

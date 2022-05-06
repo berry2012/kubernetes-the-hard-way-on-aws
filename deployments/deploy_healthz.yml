@@ -1,0 +1,58 @@
+# this is useful for GCP lb
+
+- hosts: controllers
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    config_dir: "/etc/kubernetes/config"
+    cert_remote_location: "/home/ubuntu"
+    ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Create an nginx configuration for the health check proxy
+      shell: |
+        cat > kubernetes.default.svc.cluster.local << EOF
+        server {
+          listen      80;
+          server_name kubernetes.default.svc.cluster.local;
+
+          location /healthz {
+            proxy_pass                    https://127.0.0.1:6443/healthz;
+            proxy_ssl_trusted_certificate /var/lib/kubernetes/ca.pem;
+          }
+        }
+        EOF
+
+    - name: Set up the proxy configuration so that it is loaded by nginx
+      block:
+        - shell: mv kubernetes.default.svc.cluster.local /etc/nginx/sites-available/kubernetes.default.svc.cluster.local
+
+        - shell: ln -s /etc/nginx/sites-available/kubernetes.default.svc.cluster.local /etc/nginx/sites-enabled/
+
+        - shell: systemctl restart nginx
+
+        - shell: systemctl enable nginx
+
+    - name: Verify health check 
+      uri:
+        url: http://127.0.0.1/healthz     
+        headers: 
+          Host: kubernetes.default.svc.cluster.local
+        return_content: yes          
+      register: health_check
+
+    - name: Print health_check result
+      debug:
+        msg: "{{ health_check.content }}"   
+
+
+

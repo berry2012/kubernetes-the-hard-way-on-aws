@@ -1,0 +1,49 @@
+- hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: true
+
+  tasks:
+    - name: Install CFSSL
+      get_url:
+        url: "{{ item }}"
+        dest: /usr/local/bin/
+        mode: a+x
+      loop:
+        - https://storage.googleapis.com/kubernetes-the-hard-way/cfssl/1.4.1/linux/cfssl
+        - https://storage.googleapis.com/kubernetes-the-hard-way/cfssl/1.4.1/linux/cfssljson
+      become_user: root
+
+    - name: get cfssl version
+      shell: cfssl version
+      register: cfssl_version
+
+    - name: Show cfssl version
+      debug:
+        msg:
+        - "{{ cfssl_version.stdout_lines }}"      
+        
+    - name: get cfssljson version
+      shell: cfssljson --version
+      register: cfssljson_version
+
+    - name: Show cfssljson version
+      debug:
+        msg:
+        - "{{ cfssljson_version.stdout_lines }}"     
+
+    - name: Install kubectl
+      get_url:
+        url: https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/
+        mode: a+x
+      become_user: root
+      
+    - name: get kubectl version
+      shell: kubectl version --client
+      register: kubectl_version
+
+    - name: Show kubectl version
+      debug:
+        msg:
+        - "{{ kubectl_version.stdout_lines }}" 

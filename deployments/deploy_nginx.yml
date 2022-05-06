@@ -1,0 +1,69 @@
+
+# deploy lb to api server controllers
+- hosts: lb
+  become: true
+  become_user: root
+  gather_facts: true      
+
+  vars:
+    config_dir: "/etc/kubernetes/config"
+    cert_remote_location: "/home/ubuntu"
+    ssh_opts: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Enable service nginx, and not touch the state
+      service:
+        name: nginx
+        enabled: yes
+
+    - name: Create nginx confd
+      shell: mkdir -p /etc/nginx/tcpconf.d
+
+    - name: Add the following to the end of nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        line: 'include /etc/nginx/tcpconf.d/*;'
+
+    - name: Setting variables as fact
+      set_fact: 
+        CONTROLLER0_IP: "{{ controller1_private_ip }}"
+        CONTROLLER1_IP: "{{ controller2_private_ip }}"          
+
+    - name: Create an nginx configuration for the health check proxy
+      shell: |
+        cat << EOF | sudo tee /etc/nginx/tcpconf.d/kubernetes.conf
+        stream {
+            upstream kubernetes {
+                server {{ CONTROLLER0_IP }}:6443;
+                server {{ CONTROLLER1_IP }}:6443;
+            }
+
+            server {
+                listen 6443;
+                listen 443;
+                proxy_pass kubernetes;
+            }
+        }
+        EOF
+
+    - name: Reload the nginx configuration
+      shell: nginx -s reload
+
+    - name: Verify cluster
+      uri:
+        url: https://localhost:6443/version    
+        validate_certs: no
+        return_content: yes
+      register: cluster_result
+
+    - name: Print cluster_result
+      debug:
+        msg: "{{ cluster_result.content }}"   
+

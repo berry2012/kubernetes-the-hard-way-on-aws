@@ -1,0 +1,735 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: A template to create 2 worker nodes, 2 controllers, 1 loadbalancer API server and an Ansible host in a new AWS VPC with SSH enabled.
+            This template deploys a VPC, with a pair of public and private subnets spread
+            across two Availability Zones. It deploys an internet gateway, with a default
+            route on the public subnets. It deploys a pair of NAT gateways (one in each AZ),
+            and default routes for them in the private subnets.
+
+Parameters: 
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+
+  KeyName:
+    Description: Name of SSH KeyPair already created via console
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: Provide the name of an existing SSH key pair
+
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t3.medium
+      - t2.large
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c1.medium
+      - c1.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - g2.2xlarge
+      - g2.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+      - d2.xlarge
+      - d2.2xlarge
+      - d2.4xlarge
+      - d2.8xlarge
+      - hs1.8xlarge
+      - cr1.8xlarge
+      - cc2.8xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+
+Mappings:
+  AWSInstanceType2Arch:
+    t1.micro:
+      Arch: HVM64
+    t2.nano:
+      Arch: HVM64
+    t2.micro:
+      Arch: HVM64
+    t2.small:
+      Arch: HVM64
+    t2.medium:
+      Arch: HVM64
+    t3.medium:
+      Arch: HVM64      
+    t2.large:
+      Arch: HVM64
+    m1.small:
+      Arch: HVM64
+    m1.medium:
+      Arch: HVM64
+    m1.large:
+      Arch: HVM64
+    m1.xlarge:
+      Arch: HVM64
+    m2.xlarge:
+      Arch: HVM64
+    m2.2xlarge:
+      Arch: HVM64
+    m2.4xlarge:
+      Arch: HVM64
+    m3.medium:
+      Arch: HVM64
+    m3.large:
+      Arch: HVM64
+    m3.xlarge:
+      Arch: HVM64
+    m3.2xlarge:
+      Arch: HVM64
+    m4.large:
+      Arch: HVM64
+    m4.xlarge:
+      Arch: HVM64
+    m4.2xlarge:
+      Arch: HVM64
+    m4.4xlarge:
+      Arch: HVM64
+    m4.10xlarge:
+      Arch: HVM64
+    c1.medium:
+      Arch: HVM64
+    c1.xlarge:
+      Arch: HVM64
+    c3.large:
+      Arch: HVM64
+    c3.xlarge:
+      Arch: HVM64
+    c3.2xlarge:
+      Arch: HVM64
+    c3.4xlarge:
+      Arch: HVM64
+    c3.8xlarge:
+      Arch: HVM64
+    c4.large:
+      Arch: HVM64
+    c4.xlarge:
+      Arch: HVM64
+    c4.2xlarge:
+      Arch: HVM64
+    c4.4xlarge:
+      Arch: HVM64
+    c4.8xlarge:
+      Arch: HVM64
+    g2.2xlarge:
+      Arch: HVMG2
+    g2.8xlarge:
+      Arch: HVMG2
+    r3.large:
+      Arch: HVM64
+    r3.xlarge:
+      Arch: HVM64
+    r3.2xlarge:
+      Arch: HVM64
+    r3.4xlarge:
+      Arch: HVM64
+    r3.8xlarge:
+      Arch: HVM64
+    i2.xlarge:
+      Arch: HVM64
+    i2.2xlarge:
+      Arch: HVM64
+    i2.4xlarge:
+      Arch: HVM64
+    i2.8xlarge:
+      Arch: HVM64
+    d2.xlarge:
+      Arch: HVM64
+    d2.2xlarge:
+      Arch: HVM64
+    d2.4xlarge:
+      Arch: HVM64
+    d2.8xlarge:
+      Arch: HVM64
+    hs1.8xlarge:
+      Arch: HVM64
+    cr1.8xlarge:
+      Arch: HVM64
+    cc2.8xlarge:
+      Arch: HVM64
+  AWSRegionArch2AMI:
+    us-east-1:
+      HVM64: ami-0d70a59d7191a8079
+      HVMG2: ami-0a584ac55a7631c0c
+    us-west-2:
+      HVM64: ami-025fc2c61f9333edc
+      HVMG2: ami-0e09505bc235aa82d
+    us-west-1:
+      HVM64: ami-0bdb828fd58c52235
+      HVMG2: ami-066ee5fd4a9ef77f1
+    eu-west-1:
+      HVM64: ami-00e7df8df28dfa791
+      HVMG2: ami-00e7df8df28dfa791
+    eu-west-2:
+      HVM64: ami-00826bd51e68b1487
+      HVMG2: NOT_SUPPORTED
+    eu-west-3:
+      HVM64: ami-0190e6d0d8c1fe02d
+      HVMG2: NOT_SUPPORTED
+    eu-central-1:
+      HVM64: ami-0233214e13e500f77
+      HVMG2: ami-06223d46a6d0661c7
+    ap-northeast-1:
+      HVM64: ami-06cd52961ce9f0d85
+      HVMG2: ami-053cdd503598e4a9d
+    ap-northeast-2:
+      HVM64: ami-0a10b2721688ce9d2
+      HVMG2: NOT_SUPPORTED
+    ap-northeast-3:
+      HVM64: ami-0d98120a9fb693f07
+      HVMG2: NOT_SUPPORTED
+    ap-southeast-1:
+      HVM64: ami-0750a20e9959e44ff
+      HVMG2: ami-0be9df32ae9f92309
+    ap-southeast-2:
+      HVM64: ami-09b42976632b27e9b
+      HVMG2: ami-0a9ce9fecc3d1daf8
+    ap-south-1:
+      HVM64: ami-05ba3a39a75be1ec4
+      HVMG2: ami-097b15e89dbdcfcf4
+    us-east-2:
+      HVM64: ami-0b59bfac6be064b78
+      HVMG2: NOT_SUPPORTED
+    ca-central-1:
+      HVM64: ami-0b18956f
+      HVMG2: NOT_SUPPORTED
+    sa-east-1:
+      HVM64: ami-07b14488da8ea02a0
+      HVMG2: NOT_SUPPORTED
+    cn-north-1:
+      HVM64: ami-0a4eaf6c4454eda75
+      HVMG2: NOT_SUPPORTED
+    cn-northwest-1:
+      HVM64: ami-6b6a7d09
+      HVMG2: NOT_SUPPORTED
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+  NoIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "no-ingress-sg"
+      GroupDescription: "Security group with no ingress rule"
+      VpcId: !Ref VPC
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for k8s-hardway nodes
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: icmp
+          FromPort: 8
+          ToPort: -1
+          CidrIp: 10.192.0.0/16                   
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+  InboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: -1
+      FromPort: 0
+      ToPort: 65535
+      GroupId: !GetAtt InstanceSecurityGroup.GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - InstanceSecurityGroup
+          - GroupId
+
+  Ec2InstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: k8s-hardway-SSM-root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+
+  IamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: k8s-hardway-SSM-Manage-EC2
+      Path: /
+      Roles: 
+       - !Ref Ec2InstanceRole
+
+  ansibleController:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: ansible_controller
+        - Key: project
+          Value: k8s-hardway
+      UserData: !Base64 
+        'Fn::Sub': |
+          #!/bin/bash -xe
+          sudo apt update
+          sudo apt install ansible -y
+
+  controller1:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: controller1
+        - Key: project
+          Value: k8s-hardway
+  controller2:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet2
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: controller2
+        - Key: project
+          Value: k8s-hardway
+  worker1:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet1
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: worker1
+        - Key: project
+          Value: k8s-hardway
+  worker2:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet2
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: worker2
+        - Key: project
+          Value: k8s-hardway          
+  controllerApiServerLb:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      InstanceType: !Ref InstanceType      
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PublicSubnet2
+      IamInstanceProfile: !Ref IamInstanceProfile
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      BlockDeviceMappings:
+      -
+        DeviceName: /dev/sda1
+        Ebs:
+          VolumeSize: 20
+      Tags:
+        - Key: auto-delete
+          Value: no
+        - Key: Name
+          Value: controller_api_server_lb
+        - Key: project
+          Value: k8s-hardway
+Outputs: 
+  ansibleController:
+    Description: ansibleController Instance ID
+    Value: !Ref ansibleController
+  controller1:
+    Description: controller1 Instance ID
+    Value: !Ref controller1
+  controller2:
+    Description: controller1 Instance ID
+    Value: !Ref controller1
+  worker1:
+    Description: worker1 Instance ID
+    Value: !Ref worker1
+  worker2:
+    Description: worker2 Instance ID
+    Value: !Ref worker2
+  controllerApiServerLb:
+    Description: controllerApiServerLb Instance ID
+    Value: !Ref controllerApiServerLb
+  IamInstanceProfile:
+    Description: The Instance role
+    Value: !Ref IamInstanceProfile
+
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet2
+
+  InstanceSecurityGroup:
+    Description: node Security group 
+    Value: !Ref InstanceSecurityGroup    

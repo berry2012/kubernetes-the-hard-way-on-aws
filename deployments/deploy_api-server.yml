@@ -1,0 +1,104 @@
+- hosts: controllers
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    config_dir: "/etc/kubernetes/config"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: create config dir if it doesn't exist
+      shell: sudo mkdir -p /etc/kubernetes/config
+
+    - name: Download and install the control plane binaries on each control node
+      get_url:
+        url: "{{ item }}"
+        dest: /usr/local/bin/
+        mode: a+x
+      loop:
+        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-apiserver
+        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-controller-manager
+        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-scheduler
+        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl
+
+    - name: create config dir if it doesn't exist
+      shell: sudo mkdir -p /var/lib/kubernetes/
+
+    - name: copy kubernetes keys to remote hosts only
+      copy: 
+        src: "/home/ubuntu/{{ item }}"
+        dest: /var/lib/kubernetes/
+        remote_src: yes
+      loop: 
+        - kubernetes-key.pem
+        - kubernetes.pem 
+        - ca.pem
+        - ca-key.pem   
+        - service-account-key.pem
+        - service-account.pem
+        - encryption-config.yaml
+
+    - name: Get internal IP
+      shell: INTERNAL_IP=$(curl http://169.254.169.254/latest/meta-data/local-ipv4) && echo $INTERNAL_IP
+      register: internal_ip           
+
+    - name: Setting INTERNAL_IP as fact
+      set_fact: INTERNAL_IP="{{ internal_ip.stdout }}"
+
+    - name: Setting variables as fact
+      set_fact: 
+        CONTROLLER0_IP: "{{ controller1_private_ip }}"
+        CONTROLLER1_IP: "{{ controller2_private_ip }}"      
+
+    - name: Generate the kube-apiserver unit file for systemd 
+      shell: |
+        cat << EOF | sudo tee /etc/systemd/system/kube-apiserver.service
+        [Unit]
+        Description=Kubernetes API Server
+        Documentation=https://github.com/kubernetes/kubernetes
+
+        [Service]
+        ExecStart=/usr/local/bin/kube-apiserver \\
+          --advertise-address={{ INTERNAL_IP }} \\
+          --allow-privileged=true \\
+          --apiserver-count=3 \\
+          --audit-log-maxage=30 \\
+          --audit-log-maxbackup=3 \\
+          --audit-log-maxsize=100 \\
+          --audit-log-path=/var/log/audit.log \\
+          --authorization-mode=Node,RBAC \\
+          --bind-address=0.0.0.0 \\
+          --client-ca-file=/var/lib/kubernetes/ca.pem \\
+          --enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \\
+          --enable-swagger-ui=true \\
+          --etcd-cafile=/var/lib/kubernetes/ca.pem \\
+          --etcd-certfile=/var/lib/kubernetes/kubernetes.pem \\
+          --etcd-keyfile=/var/lib/kubernetes/kubernetes-key.pem \\
+          --etcd-servers=https://{{ CONTROLLER0_IP }}:2379,https://{{ CONTROLLER1_IP }}:2379 \\
+          --event-ttl=1h \\
+          --experimental-encryption-provider-config=/var/lib/kubernetes/encryption-config.yaml \\
+          --kubelet-certificate-authority=/var/lib/kubernetes/ca.pem \\
+          --kubelet-client-certificate=/var/lib/kubernetes/kubernetes.pem \\
+          --kubelet-client-key=/var/lib/kubernetes/kubernetes-key.pem \\
+          --runtime-config='api/all=true' \\
+          --service-account-key-file=/var/lib/kubernetes/service-account.pem \\
+          --service-account-signing-key-file=/var/lib/kubernetes/service-account-key.pem \\
+          --service-account-issuer=https://{{ controller_api_server_lb_private_ip }}:6443 \\
+          --service-cluster-ip-range=10.32.0.0/24 \\
+          --service-node-port-range=30000-32767 \\
+          --tls-cert-file=/var/lib/kubernetes/kubernetes.pem \\
+          --tls-private-key-file=/var/lib/kubernetes/kubernetes-key.pem \\
+          --v=2 \\
+          --kubelet-preferred-address-types=InternalIP,InternalDNS,Hostname,ExternalIP,ExternalDNS
+        Restart=on-failure
+        RestartSec=5
+
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - import_tasks: deploy_controlermanager.yml
+    - import_tasks: deploy_scheduler.yml

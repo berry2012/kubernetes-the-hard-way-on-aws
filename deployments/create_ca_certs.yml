@@ -1,0 +1,327 @@
+- hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: true
+
+  vars:
+    cert_location: "/home/ubuntu/certs"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: Create certificate directory if it does not exist
+      file:
+        path: "{{ cert_location }}"
+        state: directory
+        mode: '0755'
+
+    - name: generate the certificate authority
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > ca-config.json << EOF
+        {
+          "signing": {
+            "default": {
+              "expiry": "8760h"
+            },
+            "profiles": {
+              "kubernetes": {
+                "usages": ["signing", "key encipherment", "server auth", "client auth"],
+                "expiry": "8760h"
+              }
+            }
+          }
+        }
+        EOF
+
+        cat > ca-csr.json << EOF
+        {
+          "CN": "Kubernetes",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "Kubernetes",
+              "OU": "CA",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+
+        }  
+
+
+    - name: generate the Admin Client Certificate
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > admin-csr.json << EOF
+        {
+          "CN": "admin",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:masters",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -profile=kubernetes \
+        admin-csr.json | cfssljson -bare admin
+
+        }
+
+    - name: Generate a certificate and private key for each Kubernetes worker node
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+        cat > worker1-csr.json << EOF
+        {
+          "CN": "system:node:worker1",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:nodes",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -hostname={{ worker1_hostnames }} \
+          -profile=kubernetes \
+          worker1-csr.json | cfssljson -bare worker1
+
+        cat > worker2-csr.json << EOF
+        {
+          "CN": "system:node:worker2",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:nodes",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -hostname={{ worker2_hostnames }} \
+          -profile=kubernetes \
+          worker2-csr.json | cfssljson -bare worker2
+
+        }
+
+
+    - name: Controller Manager Client certificate
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > kube-controller-manager-csr.json << EOF
+        {
+          "CN": "system:kube-controller-manager",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:kube-controller-manager",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -profile=kubernetes \
+          kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+
+        }
+
+    - name: Kube Proxy Client certificate
+      shell: |
+        cd "{{ cert_location }}" &&  
+        {
+
+        cat > kube-proxy-csr.json << EOF
+        {
+          "CN": "system:kube-proxy",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:node-proxier",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -profile=kubernetes \
+          kube-proxy-csr.json | cfssljson -bare kube-proxy
+
+        }
+
+    - name: Kube Scheduler Client Certificate
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > kube-scheduler-csr.json << EOF
+        {
+          "CN": "system:kube-scheduler",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "system:kube-scheduler",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -profile=kubernetes \
+          kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+
+        }        
+
+    - name: Generate service account keys
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > service-account-csr.json << EOF
+        {
+          "CN": "service-accounts",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+            {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "Kubernetes",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -profile=kubernetes \
+          service-account-csr.json | cfssljson -bare service-account
+
+        }       
+
+    - debug:
+        msg: "{{ CERT_HOSTNAME }}"
+
+    - name: Generate Kubernetes cluster server certificate for the Kubernetes API
+      shell: |
+        cd "{{ cert_location }}" && 
+        {
+
+        cat > kubernetes-csr.json << EOF
+        {
+
+          "CN": "kubernetes",
+          "key": {
+            "algo": "rsa",
+            "size": 2048
+          },
+          "names": [
+          {
+              "C": "IR",
+              "L": "Dublin",
+              "O": "Kubernetes",
+              "OU": "Kubernetes The Hard Way",
+              "ST": "Dublin"
+            }
+          ]
+        }
+        EOF
+
+        cfssl gencert \
+          -ca=ca.pem \
+          -ca-key=ca-key.pem \
+          -config=ca-config.json \
+          -hostname={{ CERT_HOSTNAME }} \
+          -profile=kubernetes \
+          kubernetes-csr.json | cfssljson -bare kubernetes
+
+        }
+

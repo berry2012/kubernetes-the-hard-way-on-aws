@@ -1,0 +1,57 @@
+- hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: true
+
+  vars:
+    config_dir: "/etc/kubernetes/config"
+    cert_remote_location: "/home/ubuntu/certs"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: Show Control Plane API Endpoint IP
+      debug:
+        msg: "API Endpoint: {{ controller_api_server_lb_private_ip }}"  
+
+    - name: configure your local kubectl
+      shell: |
+        kubectl config set-cluster kubernetes-the-hard-way \
+          --certificate-authority={{ cert_remote_location }}/ca.pem \
+          --embed-certs=true \
+          --server=https://{{ controller_api_server_lb_private_ip }}:6443
+
+    - name: configure admin kubectl user
+      shell: |
+        kubectl config set-credentials admin \
+          --client-certificate={{ cert_remote_location }}/admin.pem \
+          --client-key={{ cert_remote_location }}/admin-key.pem
+
+    - name: Set admin kubectl user
+      shell: |
+        kubectl config set-context kubernetes-the-hard-way \
+          --cluster=kubernetes-the-hard-way \
+          --user=admin
+
+    - name: Use context
+      shell: kubectl config use-context kubernetes-the-hard-way
+
+    - name: Use kubectl to get pods
+      shell: kubectl get pods
+      register: pods
+      no_log: True
+
+    - name: Show pods results 
+      debug:
+        msg:
+        - "{{ pods.stdout_lines }}"  
+
+    - name: Use kubectl to get nodes
+      shell: kubectl get nodes
+      register: nodes
+      no_log: True
+
+    - name: Show nodes results 
+      debug:
+        msg:
+        - "{{ nodes.stdout_lines }}"          

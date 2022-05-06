@@ -1,0 +1,90 @@
+- name: Secret Smoke Test
+  hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: false
+
+  tasks:
+    - name: Create a test secret
+      shell: kubectl create secret generic kubernetes-the-hard-way --from-literal="mykey=mydata"
+
+    - name: Pause for 5 sec 
+      pause:
+        seconds: 5
+
+
+- hosts: controllers[0]
+  become: true
+  become_user: root
+  gather_facts: false
+
+  vars:
+    cert_location: "/home/ubuntu/certs"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: Use kubectl to get nodes on one controller
+      shell: |
+        sudo ETCDCTL_API=3 etcdctl get \
+          --endpoints=https://127.0.0.1:2379 \
+          --cacert=/etc/etcd/ca.pem \
+          --cert=/etc/etcd/kubernetes.pem \
+          --key=/etc/etcd/kubernetes-key.pem\
+          /registry/secrets/default/kubernetes-the-hard-way | hexdump -C    
+      register: output    
+
+    - name: Show result
+      debug:
+        msg:
+        - "{{ output.stdout_lines }}"  
+
+    - name: Validate if etcd key is prefixed with k8s:enc:aescbc:v1:key1
+      fail:
+        msg:
+        - "aescbc provider was not used to encrypt the data"  
+      when: '"k8s:enc:aescbc" not in output.stdout'
+
+
+
+- name: Deployment Smoke Test
+  hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: false
+
+  tasks:
+    - name: Create a a simple nginx deployment
+      shell: kubectl run nginx --image=nginx
+
+    - name: Pause for 10 sec to build containers
+      pause:
+        seconds: 10
+
+    - name: Verify that the deployment created a pod and that the pod is running
+      shell: kubectl get pods -l run=nginx
+      register: pod_status
+
+    - name: Validate if nginx pod ran
+      fail:
+        msg:
+        - "nginx pod did not run"  
+      when: "'nginx' not in pod_status.stdout"
+
+    - name: Get logs from pod
+      shell: |
+        POD_NAME=$(kubectl get pods -l run=nginx -o jsonpath="{.items[0].metadata.name}")
+        kubectl logs $POD_NAME
+      register: pod_logs
+
+    - name: Get the logs from the nginx pod
+      debug:
+        msg:
+        - "{{ pod_logs.stdout_lines }}"  
+
+    - name: Get logs from pod
+      shell: |
+        POD_NAME=$(kubectl get pods -l run=nginx -o jsonpath="{.items[0].metadata.name}")
+        kubectl exec -i $POD_NAME -- nginx -v
+      register: pod_exec

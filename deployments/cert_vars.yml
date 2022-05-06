@@ -1,0 +1,46 @@
+- hosts: k8s
+  gather_facts: true
+
+  vars:
+    file_store: "/home/ubuntu/variables.text"
+
+  tasks:
+
+    - name: Get internal IP DNS NAME
+      shell: INTERNAL_IP_DNS=$(curl http://169.254.169.254/latest/meta-data/local-hostname) && echo $INTERNAL_IP_DNS
+      register: internal_ip_dns           
+
+    - name: Setting INTERNAL_IP_DNS as fact
+      set_fact: INTERNAL_IP_DNS="{{ internal_ip_dns.stdout }}"
+
+    - name: Comment file
+      lineinfile:
+        path: "{{ file_store }}"
+        line: "#--------------------------------Start Dynamic Variables------------------------------------------------------------------#"
+        create: yes 
+      delegate_to: localhost  
+
+    - name: Add hostnames line to a variables files if the file does not exist
+      lineinfile:
+        path: "{{ file_store }}"
+        line: "{{ inventory_hostname }}_hostnames: '{{ inventory_hostname }},{{ ansible_host }},{{ ansible_hostname }},{{ INTERNAL_IP_DNS }}'"
+        create: yes 
+      delegate_to: localhost   
+
+    - name: Add IPs line to a variables files if the file does not exist
+      lineinfile:
+        path: "{{ file_store }}"
+        line: "{{ inventory_hostname }}_private_ip: '{{ ansible_host }}'"
+        create: yes 
+      delegate_to: localhost 
+
+    - name: Comment file
+      lineinfile:
+        path: "{{ file_store }}"
+        line: "#-------------------------------End Dynamic Variables---------------------------------------------------------------#"
+        create: yes 
+      delegate_to: localhost 
+
+# view the file saved to localhost
+    - debug: msg="{{lookup('file', '{{ file_store }}') }}"
+      delegate_to: localhost     

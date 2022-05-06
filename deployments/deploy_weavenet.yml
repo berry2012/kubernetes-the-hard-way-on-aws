@@ -1,0 +1,39 @@
+- hosts: workers
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    config_dir: "/etc/kubernetes/config"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    - name: enable IP forwarding
+      shell: |
+        sysctl net.ipv4.conf.all.forwarding=1
+        echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
+
+- name: Install Weave Network from Kubectl Remote Machine
+  hosts: localhost
+  become: true
+  become_user: ubuntu
+  gather_facts: false
+
+  tasks:
+    - name: Install Weave Net
+      shell: kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')&env.IPALLOC_RANGE=10.200.0.0/16"
+
+    - name: Pause for 1 minute to build containers
+      pause:
+        minutes: 1
+
+    - name: Get Weave Net pods
+      shell: kubectl get pods -n kube-system
+      register: weave_pods
+
+    - name: Show Weave Net pods
+      debug:
+        msg:
+        - "{{ weave_pods.stdout_lines }}"  

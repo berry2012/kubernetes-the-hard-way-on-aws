@@ -1,0 +1,89 @@
+- hosts: workers
+  serial: 2
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    cert_location: "/home/ubuntu/certs"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+
+    - name: copy ca.pem to worker nodes 
+      copy: 
+        src: "{{ cert_location }}/ca.pem"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu  
+
+    - name: copy kube-proxy.kubeconfig to worker nodes 
+      copy: 
+        src: "{{ cert_location }}/kube-proxy.kubeconfig"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu 
+
+    - name: copy worker1 files to worker node 1
+      copy: 
+        src: "{{ item }}"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        -  "{{ cert_location }}/worker1-key.pem"
+        -  "{{ cert_location }}/worker1.pem"
+        -  "{{ cert_location }}/worker1.kubeconfig"    
+      when: inventory_hostname == "worker1"
+    
+    - name: copy worker2 files to worker node 2
+      copy: 
+        src: "{{ item }}"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        -  "{{ cert_location }}/worker2-key.pem"
+        -  "{{ cert_location }}/worker2.pem"
+        -  "{{ cert_location }}/worker2.kubeconfig"    
+      when: inventory_hostname == "worker2"
+
+
+- hosts: controllers
+  serial: 2
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    cert_location: "/home/ubuntu/certs"
+    cert_remote_location: "/home/ubuntu"
+  vars_files:
+    - ./env.yaml
+
+  tasks:
+    
+    - name: copy controller keys to control planes
+      copy: 
+        src: "{{ cert_location }}/{{ item }}"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu
+      loop: "{{ controller_keys }}"
+
+    - name: copy controller kubeconfigs to control planes
+      copy: 
+        src: "{{ cert_location }}/{{ item }}"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu
+      loop: "{{ kubeconfigs }}"
+
+    - name: copy {{ controller_config_files }} to control planes
+      copy: 
+        src: "{{ cert_location }}/{{ controller_config_files }}"
+        dest: "{{ cert_remote_location }}"
+        owner: ubuntu
+        group: ubuntu
