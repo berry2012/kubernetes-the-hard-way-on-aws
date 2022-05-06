@@ -1,5 +1,5 @@
 # kubernetes-the-hard-way-on-aws
-**Setup Kubernetes the hard way on AWS **
+**Setup Kubernetes the hard way on AWS**
 
 *This is intended for audience that wants to understand how Kubernetes all fits together in AWS before going to production.* 
 
