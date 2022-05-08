@@ -3,7 +3,7 @@
 
 *This is intended for audience that wants to understand how Kubernetes all fits together in AWS before going to production.* 
 
-*In this tutorial, we deployed the infrastructure as code on AWS using AWS CloudFormation. We configured all the needed packages using Ansible for Configuration as Code.*
+*In this tutorial, I deployed the infrastructure as code on AWS using AWS CloudFormation. I configured all the needed packages using Ansible for Configuration as Code.*
 
 
 # Pre-requisites:
@@ -50,7 +50,10 @@ UBUNTU_CODENAME=focal
 
 ## Accessing the EC2 instances
 - You can use SSH or AWS SSM to access the Ansible Server or any other node
-- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html)
+- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
+
+`aws ssm start-session --target <instance-id>`
+
 ## Setting up for deployments
 - Get instances and create Ansible inventory on your ansible controller server
 
