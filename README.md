@@ -57,41 +57,22 @@ UBUNTU_CODENAME=focal
 ## Setting up for deployments
 - Get instances and create Ansible inventory on your ansible controller server
 
-> ```aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region eu-west-2```
-
-
-- Define your environment variables
-
 ```
-SSH_KEY_FILE="~/path/to/key.pem"
+REGION="eu-west-2" # set your AWS region
 
-WORKER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
-
-WORKER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
-
-CONTROLLER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
-
-CONTROLLER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)
-
-CONTROLLER_API_LB_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller_api_server_lb" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2) 
+aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region ${REGION}
 ```
 
 
-- Confirm the Envrionment variables you've set
+- Create inventory file. Inspect the inventory.sh and update the file accordingly
 
 ```
-echo "CONTROLLER1_PRIVATE_IP=${CONTROLLER1_PRIVATE_IP}" 
-echo "CONTROLLER2_PRIVATE_IP=${CONTROLLER2_PRIVATE_IP}"
-echo "WORKER1_PRIVATE_IP=${WORKER1_PRIVATE_IP}"
-echo "WORKER2_PRIVATE_IP=${WORKER2_PRIVATE_IP}"
-echo "CONTROLLER_API_LB_PRIVATE_IP=${CONTROLLER_API_LB_PRIVATE_IP}"
-echo "SSH_KEY_FILE=${SSH_KEY_FILE}"
+chmod +x deployments/inventory.sh
+bash deployments/inventory.sh
+
 ```
 
-- Copy the content of the `inventory` file and paste it on your terminal. 
-  It will override the existing content and apply the environment variables.
-
-- Transfer deployments/playbooks to ansible server
+- Transfer all playbooks in deployments/playbooks to the ansible server
 
 ```
 cd kubernetes-the-hard-way-on-aws/deployments
@@ -178,7 +159,7 @@ ubuntu@ip-10-192-10-137:~$
 11. `ansible-playbook -i inventory -v workernodes.yml`
 12. `ansible-playbook -i inventory -v kubectl_remote.yml`
 13. `ansible-playbook -i inventory -v deploy_weavenet.yml`
-14. [Setup core DNS](./coreDNS.md)
+14. [Setup coreDNS](./coreDNS.md)
 15. `ansible-playbook -i inventory -v smoke_test.yml`
 
 
