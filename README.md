@@ -49,7 +49,7 @@ UBUNTU_CODENAME=focal
 ![Create Infrastructure](./images/CF-infrastructure.png) 
 
 ## Accessing the EC2 instances
-- You can use SSH or AWS SSM to access the Ansible Server or any other node
+- You can use SSH or AWS SSM to access the Ansible Controller Server or any other node
 - Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
 
 `aws ssm start-session --target <instance-id>`
@@ -197,3 +197,7 @@ Results:
 *Check if the AWS CloudFormation Stack still exist to confirm deletion* 
 
 >`aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region eu-west-1 --query 'StackSummaries[*].{Name:StackName,Date:CreationTime,Status:StackStatus}' --output text | grep k8s-hardway`
+
+
+
+

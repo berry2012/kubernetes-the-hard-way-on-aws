@@ -6,6 +6,7 @@
   vars:
     config_dir: "/etc/kubernetes/config"
     cert_remote_location: "/home/ubuntu"
+    RELEASE: "v1.23.9"
   vars_files:
     - ./env.yaml
 
@@ -19,10 +20,10 @@
         dest: /usr/local/bin/
         mode: a+x
       loop:
-        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-apiserver
-        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-controller-manager
-        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kube-scheduler
-        - https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl
+        - https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kube-apiserver
+        - https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kube-controller-manager
+        - https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kube-scheduler
+        - https://storage.googleapis.com/kubernetes-release/release/{{ RELEASE }}/bin/linux/amd64/kubectl
 
     - name: create config dir if it doesn't exist
       shell: sudo mkdir -p /var/lib/kubernetes/

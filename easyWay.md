@@ -24,3 +24,4 @@ worker1   Ready    <none>   15m   v1.21.0
 worker2   Ready    <none>   14m   v1.21.0
 ubuntu@ip-10-192-10-137:~$ 
 ```
+
