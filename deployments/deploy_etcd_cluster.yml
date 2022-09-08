@@ -115,6 +115,9 @@
       become: true
       become_user: root
 
+    - pause:
+        seconds: 45
+
     - name: verify that etcd is working correctly
       shell: |
         sudo ETCDCTL_API=3 etcdctl member list \

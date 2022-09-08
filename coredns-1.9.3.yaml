@@ -55,22 +55,18 @@ data:
   Corefile: |
     .:53 {
         errors
-        health {
-          lameduck 5s
-        }
+        health
         ready
-        kubernetes CLUSTER_DOMAIN REVERSE_CIDRS {
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+          pods insecure
           fallthrough in-addr.arpa ip6.arpa
         }
         prometheus :9153
-        forward . UPSTREAMNAMESERVER {
-          max_concurrent 1000
-        }
         cache 30
         loop
         reload
         loadbalance
-    }STUBDOMAINS
+    }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -84,6 +80,7 @@ spec:
   # replicas: not specified here:
   # 1. Default is 1.
   # 2. Will be tuned in real time if DNS horizontal auto-scaling is turned on.
+  replicas: 2  
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -183,7 +180,7 @@ metadata:
 spec:
   selector:
     k8s-app: kube-dns
-  clusterIP: CLUSTER_DNS_IP
+  clusterIP: 10.32.0.10
   ports:
   - name: dns
     port: 53

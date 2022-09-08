@@ -102,4 +102,8 @@
         EOF
 
     - import_tasks: deploy_controlermanager.yml
+
+    - pause:
+        seconds: 10
+
     - import_tasks: deploy_scheduler.yml

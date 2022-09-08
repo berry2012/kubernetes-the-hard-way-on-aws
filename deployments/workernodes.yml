@@ -7,6 +7,7 @@
   vars:
     config_dir: "/etc/kubernetes/config"
     cert_remote_location: "/home/ubuntu"
+    RELEASE: "v1.23.9"    
   vars_files:
     - ./env.yaml
 

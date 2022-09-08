@@ -114,7 +114,7 @@ chmod +x easy_script.sh
 
 LOCAL_SSH_KEY_FILE="~/.ssh/key.pem"  # your ssh key
 
-chmod 400 ${LOCAL_SSH_KEY_FILE}
+chmod 400 "~/.ssh/key.pem"  # your ssh key
 ```
 
 
@@ -190,20 +190,26 @@ ubuntu@ip-10-192-10-137:~$
 5. `ansible-playbook -i inventory -v create_kubeconfigs.yml`
 6. `ansible-playbook -i inventory -v distribute_k8s_files.yml`
 7. `ansible-playbook -i inventory -v deploy_etcd_cluster.yml`
-8. `ansible-playbook -i inventory -v deploy_api-server.yml` See results below.
+8. `ansible-playbook -i inventory -v deploy_api-server.yml` See API Server Bootstrap results below.
 9. `ansible-playbook -i inventory -v rbac_authorization.yml`
 10. `ansible-playbook -i inventory -v deploy_nginx.yml`
-11. `ansible-playbook -i inventory -v workernodes.yml`
+11. `ansible-playbook -i inventory -v workernodes.yml` See Worker Nodes Bootstrap results below.
 12. `ansible-playbook -i inventory -v kubectl_remote.yml`
-13. `ansible-playbook -i inventory -v deploy_weavenet.yml`
+13. `ansible-playbook -i inventory -v deploy_weavenet.yml` See Weavenetwork pods results below.
 14. [Setup coreDNS](./coreDNS.md)
 15. `ansible-playbook -i inventory -v smoke_test.yml`
 
 
 
-Results:
+### API Server Bootstrap Results:
 ![Successful Controller Deployment ](./images/controller-deployment-test.png)
 
+
+ ### Worker Nodes Bootstrap Results. Nodes are in NotReady state because we haven't configured networking.
+![Successful Worker Nodes Bootstrapping ](./images/workernodes.png)
+
+### Weavenetwork pods results
+![Successful Nodes Networking ](./images/weavenetworkpods.png)
 
 # Clean Up
 

@@ -4,11 +4,11 @@ REGION=eu-west-2 # update this if needed
 SSH_KEY_FILE="~/path/to/key.pem"  # update this
 
 # get variables
-WORKER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
-WORKER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
-CONTROLLER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
-CONTROLLER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})
-CONTROLLER_API_LB_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller_api_server_lb" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION}) 
+WORKER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker1" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
+WORKER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker2" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
+CONTROLLER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller1" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})    
+CONTROLLER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller2" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION})
+CONTROLLER_API_LB_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller_api_server_lb" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region ${REGION}) 
 
 
 # - Confirm the Envrionment variables you've set
