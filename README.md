@@ -48,80 +48,98 @@ UBUNTU_CODENAME=focal
 
 ![Create Infrastructure](./images/CF-infrastructure.png) 
 
-## Accessing the EC2 instances
-- You can use SSH or AWS SSM to access the Ansible Server or any other node
-- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
 
-`aws ssm start-session --target <instance-id>`
+
+## 1. Accessing the EC2 instances
+- Define your global variables
+```
+export LOCAL_SSH_KEY_FILE="~/.ssh/key.pem"
+export REGION="eu-west-2"
+```
 
 ## Setting up for deployments
-- Get instances and create Ansible inventory on your ansible controller server
-
-> ```aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region eu-west-2```
-
-
-- Define your environment variables
+- Confirm the instances created and the Public IP of the Ansible controller server
 
 ```
-SSH_KEY_FILE="~/path/to/key.pem"
+aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, PublicIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region ${REGION}
 
-WORKER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
+```
+- Define your Ansible server environment variable
+```
+  export ANSIBLE_SERVER_PUBLIC_IP=""
+```
 
-WORKER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=worker2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
+- You can use SSH or AWS SSM to access the Ansible Controller Server or any other nodes that were created with the CloudFormation Template
+- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
 
-CONTROLLER1_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller1" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)    
 
-CONTROLLER2_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller2" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2)
+```
+aws ssm start-session --target <instance-id> --region ${REGION}
+```
 
-CONTROLLER_API_LB_PRIVATE_IP=$(aws ec2 describe-instances --filters "Name=tag-value,Values=controller_api_server_lb" --query 'Reservations[*].Instances[*].[PrivateIpAddress]' --output text --region eu-west-2) 
+- Transfer your SSH key to the Ansible Server. This will be need in the Ansible Inventory file.
+  
+```
+echo "scp -i ${LOCAL_SSH_KEY_FILE} ${LOCAL_SSH_KEY_FILE} ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~/.ssh/" 
+inspect and execute the output
 ```
 
 
-- Confirm the Envrionment variables you've set
+
+- To Create inventory file. Edit the inventory.sh and update the variable SSH_KEY_FILE and REGION accordingly
 
 ```
-echo "CONTROLLER1_PRIVATE_IP=${CONTROLLER1_PRIVATE_IP}" 
-echo "CONTROLLER2_PRIVATE_IP=${CONTROLLER2_PRIVATE_IP}"
-echo "WORKER1_PRIVATE_IP=${WORKER1_PRIVATE_IP}"
-echo "WORKER2_PRIVATE_IP=${WORKER2_PRIVATE_IP}"
-echo "CONTROLLER_API_LB_PRIVATE_IP=${CONTROLLER_API_LB_PRIVATE_IP}"
-echo "SSH_KEY_FILE=${SSH_KEY_FILE}"
+vi deployments/inventory.sh
+chmod +x deployments/inventory.sh
+bash deployments/inventory.sh
+
 ```
 
-- Copy the content of the `inventory` file and paste it on your terminal. 
-  It will override the existing content and apply the environment variables.
-
-- Transfer deployments/playbooks to ansible server
+- Transfer all playbooks in deployments/playbooks to the ansible server
 
 ```
 cd kubernetes-the-hard-way-on-aws/deployments
 
-scp -i /path/to/key.pem *.yml *.yaml inventory *.cfg ubuntu@<ansible_server_public_ip>:~
+scp -i ${LOCAL_SSH_KEY_FILE} *.yml *.yaml ../inventory *.cfg ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~
 
-scp -i /path/to/key.pem ../easy_script.sh ubuntu@<ansible_server_public_ip>:~
+scp -i ${LOCAL_SSH_KEY_FILE} ../easy_script.sh ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~
 
-# transfer ssh key file
-scp -i /path/to/key.pem /path/to/key.pem ubuntu@13.40.18.178:~/.ssh/
+```
 
-ssh -i /path/to/key.pem ubuntu@<ansible_server_public_ip>
+- Connect to the Ansible Server
+```
+ssh -i ${LOCAL_SSH_KEY_FILE} ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}
 
 chmod +x easy_script.sh
 
-chmod 400 /path/to/key.pem
+LOCAL_SSH_KEY_FILE="~/.ssh/key.pem"  # your ssh key
+
+chmod 400 "~/.ssh/key.pem"  # your ssh key
 ```
 
 
 
 - After building the inventory file, test if all hosts are reachable
 
-1.  list all hosts to confirm
+1.  list all hosts to confirm that the inventory file is properly configured
 
-    `ansible all --list-hosts -i inventory`
+```
+ansible all --list-hosts -i inventory
+
+  hosts (5):
+    controller1
+    controller2
+    worker1
+    worker2
+    controller_api_server_lb
+
+```
 
 2.  Test ping on all the hosts
 
 ```
-ansible -i inventory k8s -m ping --private-key ~/.ssh/key.pem
+ansible -i inventory k8s -m ping 
+
 worker1 | SUCCESS => {
     "ansible_facts": {
         "discovered_interpreter_python": "/usr/bin/python3"
@@ -172,20 +190,26 @@ ubuntu@ip-10-192-10-137:~$
 5. `ansible-playbook -i inventory -v create_kubeconfigs.yml`
 6. `ansible-playbook -i inventory -v distribute_k8s_files.yml`
 7. `ansible-playbook -i inventory -v deploy_etcd_cluster.yml`
-8. `ansible-playbook -i inventory -v deploy_api-server.yml` See results below.
+8. `ansible-playbook -i inventory -v deploy_api-server.yml` See API Server Bootstrap results below.
 9. `ansible-playbook -i inventory -v rbac_authorization.yml`
 10. `ansible-playbook -i inventory -v deploy_nginx.yml`
-11. `ansible-playbook -i inventory -v workernodes.yml`
+11. `ansible-playbook -i inventory -v workernodes.yml` See Worker Nodes Bootstrap results below.
 12. `ansible-playbook -i inventory -v kubectl_remote.yml`
-13. `ansible-playbook -i inventory -v deploy_weavenet.yml`
-14. [Setup core DNS](./coreDNS.md)
+13. `ansible-playbook -i inventory -v deploy_weavenet.yml` See Weavenetwork pods results below.
+14. [Setup coreDNS](./coreDNS.md)
 15. `ansible-playbook -i inventory -v smoke_test.yml`
 
 
 
-Results:
+### API Server Bootstrap Results:
 ![Successful Controller Deployment ](./images/controller-deployment-test.png)
 
+
+ ### Worker Nodes Bootstrap Results. Nodes are in NotReady state because we haven't configured networking.
+![Successful Worker Nodes Bootstrapping ](./images/workernodes.png)
+
+### Weavenetwork pods results
+![Successful Nodes Networking ](./images/weavenetworkpods.png)
 
 # Clean Up
 
@@ -197,3 +221,7 @@ Results:
 *Check if the AWS CloudFormation Stack still exist to confirm deletion* 
 
 >`aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE --region eu-west-1 --query 'StackSummaries[*].{Name:StackName,Date:CreationTime,Status:StackStatus}' --output text | grep k8s-hardway`
+
+
+
+

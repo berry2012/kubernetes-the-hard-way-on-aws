@@ -5,7 +5,11 @@
 **Follow the steps below to setup core DNS in the kubernetes cluster from the ansible server as kubectl remote host**
 
 
-```[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
+```
+Deploy DNS Cluster Add-ons
+[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
+
+[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
 
 [ubuntu@ip-192-168-91-186 ~]$ kubectl get pods -l k8s-app=kube-dns -n kube-system
 NAME                       READY   STATUS    RESTARTS   AGE
