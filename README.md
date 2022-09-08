@@ -48,25 +48,48 @@ UBUNTU_CODENAME=focal
 
 ![Create Infrastructure](./images/CF-infrastructure.png) 
 
-## Accessing the EC2 instances
-- You can use SSH or AWS SSM to access the Ansible Controller Server or any other node
-- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
 
-`aws ssm start-session --target <instance-id>`
+
+## 1. Accessing the EC2 instances
+- Define your global variables
+```
+export LOCAL_SSH_KEY_FILE="~/.ssh/key.pem"
+export REGION="eu-west-2"
+```
 
 ## Setting up for deployments
-- Get instances and create Ansible inventory on your ansible controller server
+- Confirm the instances created and the Public IP of the Ansible controller server
 
 ```
-REGION="eu-west-2" # set your AWS region
+aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, PublicIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region ${REGION}
 
-aws ec2 describe-instances --filters "Name=tag:project,Values=k8s-hardway" --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone, State.Name, InstanceId, PrivateIpAddress, [Tags[?Key==`Name`].Value] [0][0]]' --output text --region ${REGION}
+```
+- Define your Ansible server environment variable
+```
+  export ANSIBLE_SERVER_PUBLIC_IP=""
+```
+
+- You can use SSH or AWS SSM to access the Ansible Controller Server or any other nodes that were created with the CloudFormation Template
+- Connecting via [AWS SSM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager.html) e.g.
+
+
+```
+aws ssm start-session --target <instance-id> --region ${REGION}
+```
+
+- Transfer your SSH key to the Ansible Server. This will be need in the Ansible Inventory file.
+  
+```
+echo "scp -i ${LOCAL_SSH_KEY_FILE} ${LOCAL_SSH_KEY_FILE} ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~/.ssh/" 
+inspect and execute the output
 ```
 
 
-- Create inventory file. Inspect the inventory.sh and update the file accordingly
+
+- To Create inventory file. Edit the inventory.sh and update the variable SSH_KEY_FILE and REGION accordingly
 
 ```
+vi deployments/inventory.sh
 chmod +x deployments/inventory.sh
 bash deployments/inventory.sh
 
@@ -77,32 +100,46 @@ bash deployments/inventory.sh
 ```
 cd kubernetes-the-hard-way-on-aws/deployments
 
-scp -i /path/to/key.pem *.yml *.yaml inventory *.cfg ubuntu@<ansible_server_public_ip>:~
+scp -i ${LOCAL_SSH_KEY_FILE} *.yml *.yaml ../inventory *.cfg ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~
 
-scp -i /path/to/key.pem ../easy_script.sh ubuntu@<ansible_server_public_ip>:~
+scp -i ${LOCAL_SSH_KEY_FILE} ../easy_script.sh ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}:~
 
-# transfer ssh key file
-scp -i /path/to/key.pem /path/to/key.pem ubuntu@13.40.18.178:~/.ssh/
+```
 
-ssh -i /path/to/key.pem ubuntu@<ansible_server_public_ip>
+- Connect to the Ansible Server
+```
+ssh -i ${LOCAL_SSH_KEY_FILE} ubuntu@${ANSIBLE_SERVER_PUBLIC_IP}
 
 chmod +x easy_script.sh
 
-chmod 400 /path/to/key.pem
+LOCAL_SSH_KEY_FILE="~/.ssh/key.pem"  # your ssh key
+
+chmod 400 ${LOCAL_SSH_KEY_FILE}
 ```
 
 
 
 - After building the inventory file, test if all hosts are reachable
 
-1.  list all hosts to confirm
+1.  list all hosts to confirm that the inventory file is properly configured
 
-    `ansible all --list-hosts -i inventory`
+```
+ansible all --list-hosts -i inventory
+
+  hosts (5):
+    controller1
+    controller2
+    worker1
+    worker2
+    controller_api_server_lb
+
+```
 
 2.  Test ping on all the hosts
 
 ```
-ansible -i inventory k8s -m ping --private-key ~/.ssh/key.pem
+ansible -i inventory k8s -m ping 
+
 worker1 | SUCCESS => {
     "ansible_facts": {
         "discovered_interpreter_python": "/usr/bin/python3"
