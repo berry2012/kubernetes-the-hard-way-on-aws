@@ -4,6 +4,7 @@
 
 
 ```
+Deploy DNS Cluster Add-ons
 [ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://raw.githubusercontent.com/berry2012/kubernetes-the-hard-way-on-aws/release-1.23.9/coredns-1.9.3.yaml
 
 [ubuntu@ip-192-168-91-186 ~]$ kubectl get pods -l k8s-app=kube-dns -n kube-system
