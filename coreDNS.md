@@ -1,5 +1,3 @@
-
-
 # Setup CoreDNS and Test
 
 **Follow the steps below to setup core DNS in the kubernetes cluster from the ansible server as kubectl remote host**
@@ -7,9 +5,7 @@
 
 ```
 Deploy DNS Cluster Add-ons
-[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
-
-[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
+[ubuntu@ip-192-168-91-186 ~]$ kubectl apply -f https://raw.githubusercontent.com/berry2012/kubernetes-the-hard-way-on-aws/release-1.23.9/coredns-1.9.3.yaml
 
 [ubuntu@ip-192-168-91-186 ~]$ kubectl get pods -l k8s-app=kube-dns -n kube-system
 NAME                       READY   STATUS    RESTARTS   AGE
@@ -35,6 +31,6 @@ Address 1: 10.32.0.1 kubernetes.default.svc.cluster.local
 search default.svc.cluster.local svc.cluster.local cluster.local eu-west-1.compute.internal
 nameserver 10.32.0.10
 options ndots:5
-[ubuntu@ip-192-168-91-186 ~]$ 
+
 
 ```

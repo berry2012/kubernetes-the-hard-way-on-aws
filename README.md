@@ -11,12 +11,12 @@
 - [AWS Account](https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/)
 
 # Cluster Details
-- kubernetes v1.21.0
-- containerd v1.4.4
-- coredns v1.8.3
-- cni v0.9.1
-- etcd v3.4.15
-- weavenetwork 
+- kubernetes v1.23.9
+- containerd v1.6.8
+- coredns v1.9.3
+- cni v1.1.1
+- etcd v3.4.20
+- weavenetwork 1.23
 
 ## Node Details
 - All the provisioned instances run the same OS

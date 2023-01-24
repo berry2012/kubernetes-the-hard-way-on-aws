@@ -13,18 +13,18 @@
     
     - name: Download etcd tar file
       get_url:
-        url: https://github.com/etcd-io/etcd/releases/download/v3.4.15/etcd-v3.4.15-linux-amd64.tar.gz
+        url: https://github.com/etcd-io/etcd/releases/download/v3.4.20/etcd-v3.4.20-linux-amd64.tar.gz
         dest: "{{ artifacts_location }}"
         mode: '0440'
 
-    - name: Extract etcd-v3.4.15-linux-amd64.tar.gz into {{ artifacts_location }}
+    - name: Extract etcd into {{ artifacts_location }}
       unarchive:
-        src: "{{ artifacts_location }}/etcd-v3.4.15-linux-amd64.tar.gz"
+        src: "{{ artifacts_location }}/etcd-v3.4.20-linux-amd64.tar.gz"
         dest: "{{ artifacts_location }}"
         remote_src: yes
       
     - name: transfer etcd to bin
-      shell: mv -v {{ artifacts_location }}/etcd-v3.4.15-linux-amd64/etcd* /usr/local/bin/
+      shell: mv -v {{ artifacts_location }}/etcd-v3.4.20-linux-amd64/etcd* /usr/local/bin/
 
     - name: create etcd dir
       shell: mkdir -p /etc/etcd /var/lib/etcd && chmod 700 /var/lib/etcd
@@ -114,6 +114,9 @@
           shell: sudo systemctl start etcd
       become: true
       become_user: root
+
+    - pause:
+        seconds: 45
 
     - name: verify that etcd is working correctly
       shell: |

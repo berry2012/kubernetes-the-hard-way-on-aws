@@ -28,7 +28,7 @@
     - name: Generate the kube-scheduler yaml config file.
       shell: |
         cat <<EOF | sudo tee /etc/kubernetes/config/kube-scheduler.yaml
-        apiVersion: kubescheduler.config.k8s.io/v1beta1
+        apiVersion: kubescheduler.config.k8s.io/v1beta3
         kind: KubeSchedulerConfiguration
         clientConnection:
           kubeconfig: "/var/lib/kubernetes/kube-scheduler.kubeconfig"
@@ -68,6 +68,9 @@
             - kube-controller-manager
             - kube-scheduler
       
+    - pause:
+        seconds: 30
+
     - name: Make sure all the services are active (running)
       shell: sudo systemctl status kube-apiserver kube-controller-manager kube-scheduler
       register: services_result

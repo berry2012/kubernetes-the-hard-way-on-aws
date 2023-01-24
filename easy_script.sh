@@ -28,7 +28,7 @@ ansible-playbook -i inventory -v kubectl_remote.yml
 echo "Configure Networking"
 ansible-playbook -i inventory -v deploy_weavenet.yml
 echo "Deploy DNS Cluster Add-ons"
-kubectl apply -f https://storage.googleapis.com/kubernetes-the-hard-way/coredns-1.8.yaml
+kubectl apply -f https://raw.githubusercontent.com/berry2012/kubernetes-the-hard-way-on-aws/release-1.23.9/coredns-1.9.3.yaml
 sleep 15
 kubectl get pods -l k8s-app=kube-dns -n kube-system
 echo "Perform Smoke Test in the cluster"
