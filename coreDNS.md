@@ -31,6 +31,4 @@ Address 1: 10.32.0.1 kubernetes.default.svc.cluster.local
 search default.svc.cluster.local svc.cluster.local cluster.local eu-west-1.compute.internal
 nameserver 10.32.0.10
 options ndots:5
-
-
 ```
